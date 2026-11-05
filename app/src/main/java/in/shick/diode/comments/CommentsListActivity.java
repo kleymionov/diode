@@ -674,16 +674,17 @@ public class CommentsListActivity extends ListActivity
     }
 
 
-    /**
-     * Called when user clicks an item in the list. Starts an activity to
-     * open the url for that item.
-     */
+    /** Tap a comment to collapse/expand it; placeholder rows keep their actions. */
     @Override
     protected void onListItemClick(ListView l, View v, int position, long id) {
         ThingInfo item = mCommentsAdapter.getItem(position);
 
         if (isHiddenCommentHeadPosition(position)) {
             showComment(position);
+            return;
+        }
+        if (mCommentsAdapter.getItemViewType(position) == CommentsListAdapter.COMMENT_ITEM_VIEW_TYPE) {
+            hideComment(position);
             return;
         }
         // Mark the OP post/regular comment as selected
@@ -708,14 +709,20 @@ public class CommentsListActivity extends ListActivity
                 resetContextInfo();
                 getNewDownloadCommentsTask().execute(Constants.DEFAULT_COMMENT_DOWNLOAD_LIMIT);
             } else if (!item.isPlaceholder()){
-                // Lazy-load the URL list to make the list-loading more 'snappy'.
-                if (mVoteTargetThing.getUrls() != null && mVoteTargetThing.getUrls().isEmpty()) {
-                    Markdown.getURLs(mVoteTargetThing.getBody(), mVoteTargetThing.getUrls());
-                }
-                if (!"[deleted]".equals(item.getAuthor())) {
-                    showDialog(Constants.DIALOG_COMMENT_CLICK);
-                }
+                showCommentActions(item);
             }
+        }
+    }
+
+    private void showCommentActions(ThingInfo item) {
+        mVoteTargetThing = item;
+        mReplyTargetName = item.getName();
+        // Load links only when the actions menu needs them.
+        if (item.getUrls() != null && item.getUrls().isEmpty()) {
+            Markdown.getURLs(item.getBody(), item.getUrls());
+        }
+        if (!"[deleted]".equals(item.getAuthor())) {
+            showDialog(Constants.DIALOG_COMMENT_CLICK);
         }
     }
 
@@ -1527,6 +1534,12 @@ public class CommentsListActivity extends ListActivity
             return;
         }
 
+        int viewType = mCommentsAdapter.getItemViewType(rowId);
+        if (viewType == CommentsListAdapter.COMMENT_ITEM_VIEW_TYPE
+                || viewType == CommentsListAdapter.HIDDEN_ITEM_HEAD_VIEW_TYPE) {
+            menu.add(0, Constants.DIALOG_COMMENT_CLICK, Menu.NONE, R.string.comment_actions);
+        }
+
         menu.add(0, Constants.COPY_TEXT_CONTEXT_ITEM, Menu.NONE, "Copy Text");
 
         if (rowId == 0) {
@@ -1601,6 +1614,10 @@ public class CommentsListActivity extends ListActivity
         int rowId = (int) info.id;
 
         switch (item.getItemId()) {
+        case Constants.DIALOG_COMMENT_CLICK:
+            showCommentActions(mCommentsAdapter.getItem(rowId));
+            return true;
+
         case Constants.SAVE_CONTEXT_ITEM:
             new SaveTask(true, getOpThingInfo(), mSettings, this).execute();
             return true;

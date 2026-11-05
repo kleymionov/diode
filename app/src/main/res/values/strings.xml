@@ -183,6 +183,7 @@
 	<string name="focus_parent_comment">Focus parent</string>
 	<string name="show_comment">Show comment</string>
 	<string name="hide_comment">Hide comment</string>
+    <string name="comment_actions">Comment actions</string>
 	<string name="view_full_context">View the full context</string>
 	<string name="view_context">View context</string>
 	<string name="goto_thread">Go to full comments</string>
