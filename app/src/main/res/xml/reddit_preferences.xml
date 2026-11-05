@@ -21,6 +21,19 @@
 <PreferenceScreen
         xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <PreferenceCategory android:title="Reddit API">
+        <Preference android:title="Public reading with OAuth"
+            android:summary="Reads public posts and comments using the configured installed-app client ID. Account login, voting and posting still use the old API and are not repaired." />
+        <EditTextPreference android:key="reddit_oauth_client_id"
+            android:title="Reddit client ID"
+            android:dialogMessage="Enter an installed-app OAuth client ID. This identifies the API application; it is not your password or a client secret."
+            android:inputType="textVisiblePassword" android:singleLine="true" />
+        <EditTextPreference android:key="reddit_api_contact"
+            android:title="Reddit contact username (optional)"
+            android:dialogMessage="Optional API contact in Diode's User-Agent. Enter the username without u/. This does not sign in to your account."
+            android:inputType="textVisiblePassword" android:singleLine="true" />
+    </PreferenceCategory>
+
     <PreferenceCategory android:title="@string/pref_general_category">
         
         <EditTextPreference

@@ -849,6 +849,10 @@ public final class ThreadsListActivity extends ListActivity {
         @Override
         public void onPreExecute() {
             resetUI(null);
+            TextView empty = (TextView) findViewById(R.id.emptyText);
+            empty.setText(R.string.noThreads);
+            empty.setOnClickListener(null);
+            empty.setClickable(false);
             enableLoadingScreen();
 
             if (mContentLength == -1) {
@@ -862,6 +866,8 @@ public final class ThreadsListActivity extends ListActivity {
 
         @Override
         public void onPostExecute(Boolean success) {
+            // Retain the requested community even if API setup is incomplete.
+            ThreadsListActivity.this.mSubreddit = mSubreddit;
             setWindowTitle();
 
             threadListActivity.disableLoadingScreen();
@@ -882,8 +888,19 @@ public final class ThreadsListActivity extends ListActivity {
                 // Point the list to last thread user was looking at, if any
                 threadListActivity.jumpToThread();
             } else {
-                if (!isCancelled())
+                if (!isCancelled()) {
+                    TextView empty = (TextView) findViewById(R.id.emptyText);
+                    empty.setText(mUserError);
+                    if (mUserError.contains("Settings > Reddit API")) {
+                        empty.append("\n\nTap here to open Settings, then refresh this list.");
+                        empty.setOnClickListener(new OnClickListener() {
+                            public void onClick(View view) {
+                                startActivity(new Intent(ThreadsListActivity.this, RedditPreferencesPage.class));
+                            }
+                        });
+                    }
                     Common.showErrorToast(mUserError, Toast.LENGTH_LONG, ThreadsListActivity.this);
+                }
             }
         }
 

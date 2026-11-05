@@ -28,6 +28,8 @@ import in.shick.diode.common.CacheInfo;
 import in.shick.diode.common.Common;
 import in.shick.diode.common.Constants;
 import in.shick.diode.common.ProgressInputStream;
+import in.shick.diode.common.RedditApi;
+import in.shick.diode.common.RedditOAuthClient;
 import in.shick.diode.common.util.Assert;
 import in.shick.diode.common.util.StringUtils;
 import in.shick.diode.common.util.Util;
@@ -68,6 +70,7 @@ public class DownloadCommentsTask extends AsyncTask<Integer, Long, Boolean>
     private String mSubreddit;
     private String mThreadId;
     private String mThreadTitle;
+    private String mUserError = "Error downloading comments. Please try again.";
     private String mThingInfoIdToPositionTo;
     private RedditSettings mSettings;
     private HttpClient mClient;
@@ -196,7 +199,7 @@ public class DownloadCommentsTask extends AsyncTask<Integer, Long, Boolean>
             // If we couldn't use the cache, then do HTTP request
             if (!currentlyUsingCache) {
                 HttpGet request = new HttpGet(url);
-                HttpResponse response = mClient.execute(request);
+                HttpResponse response = RedditApi.get(mActivity, request.getURI().toString());
 
                 // Read the header to get Content-Length since entity.getContentLength() returns -1
                 Header contentLengthHeader = response.getFirstHeader("Content-Length");
@@ -234,6 +237,9 @@ public class DownloadCommentsTask extends AsyncTask<Integer, Long, Boolean>
 
             return true;
 
+        } catch (RedditOAuthClient.ApiException e) {
+            mUserError = e.getMessage();
+            if (Constants.LOGGING) Log.w(TAG, mUserError);
         } catch (Exception e) {
             if (Constants.LOGGING) Log.e(TAG, "DownloadCommentsTask", e);
         } finally {
@@ -596,7 +602,7 @@ public class DownloadCommentsTask extends AsyncTask<Integer, Long, Boolean>
                 mActivity.setTitle(mThreadTitle + " : " + mSubreddit);
         } else {
             if (!isCancelled()) {
-                Common.showErrorToast("Error downloading comments. Please try again.", Toast.LENGTH_LONG, mActivity);
+                Common.showErrorToast(mUserError, Toast.LENGTH_LONG, mActivity);
                 mActivity.resetUI(null);
             }
         }

@@ -30,6 +30,8 @@ import android.preference.PreferenceManager;
 import android.widget.Toast;
 
 import in.shick.diode.common.Constants;
+import in.shick.diode.common.RedditApi;
+import in.shick.diode.common.RedditOAuthClient;
 import in.shick.diode.common.util.Util;
 import in.shick.diode.filters.FilterListActivity;
 import in.shick.diode.mail.EnvelopeService;
@@ -47,6 +49,9 @@ public class RedditPreferencesPage extends PreferenceActivity
         addPreferencesFromResource(R.xml.reddit_preferences);
 
         Preference e;
+
+        findPreference(RedditApi.CLIENT_ID).setOnPreferenceChangeListener(this);
+        findPreference(RedditApi.USERNAME).setOnPreferenceChangeListener(this);
 
         e = findPreference(Constants.PREF_HOMEPAGE);
         e.setOnPreferenceChangeListener(this);
@@ -110,6 +115,13 @@ public class RedditPreferencesPage extends PreferenceActivity
     }
 
     public boolean onPreferenceChange(Preference pref, Object objValue) {
+        if (RedditApi.CLIENT_ID.equals(pref.getKey()) || RedditApi.USERNAME.equals(pref.getKey())) {
+            String value = objValue.toString();
+            boolean valid = value.isEmpty() || (RedditApi.CLIENT_ID.equals(pref.getKey())
+                    ? RedditOAuthClient.validClientId(value) : RedditOAuthClient.validUsername(value));
+            if (!valid) Toast.makeText(this, "Enter a valid client ID or username without spaces or u/.", Toast.LENGTH_LONG).show();
+            return valid;
+        }
 //        if (pref.getKey().equals(BrowserSettings.PREF_EXTRAS_RESET_DEFAULTS)) {
 //            Boolean value = (Boolean) objValue;
 //            if (value.booleanValue() == true) {

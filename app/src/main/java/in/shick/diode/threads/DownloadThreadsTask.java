@@ -23,6 +23,8 @@ import in.shick.diode.common.CacheInfo;
 import in.shick.diode.common.Common;
 import in.shick.diode.common.Constants;
 import in.shick.diode.common.ProgressInputStream;
+import in.shick.diode.common.RedditApi;
+import in.shick.diode.common.RedditOAuthClient;
 import in.shick.diode.common.util.StringUtils;
 import in.shick.diode.filters.RedditFilterEngine;
 import in.shick.diode.things.Listing;
@@ -247,7 +249,7 @@ public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean>
                     if (Constants.LOGGING) Log.e(TAG, "IllegalArgumentException", e);
                     return false;
                 }
-                HttpResponse response = mClient.execute(request);
+                HttpResponse response = RedditApi.get(mContext, request.getURI().toString());
 
                 // Read the header to get Content-Length since entity.getContentLength() returns -1
                 Header contentLengthHeader = response.getFirstHeader("Content-Length");
@@ -294,11 +296,15 @@ public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean>
                 mUserError = "Invalid subreddit.";
                 if (Constants.LOGGING) Log.e(TAG, "IllegalStateException", e);
             } catch (Exception e) {
+                mUserError = "Reddit returned unreadable post data. Please try again later.";
                 if (Constants.LOGGING) Log.e(TAG, "Exception", e);
             } finally {
                 pin.close();
                 in.close();
             }
+        } catch (RedditOAuthClient.ApiException e) {
+            mUserError = e.getMessage();
+            if (Constants.LOGGING) Log.w(TAG, mUserError);
         } catch (Exception e) {
             if (Constants.LOGGING) Log.e(TAG, "DownloadThreadsTask", e);
         } finally {
@@ -347,6 +353,7 @@ public abstract class DownloadThreadsTask extends AsyncTask<Void, Long, Boolean>
             }
         } catch (Exception ex) {
             if (Constants.LOGGING) Log.e(TAG, "parseSubredditJSON", ex);
+            throw new IOException("Invalid Reddit listing", ex);
         }
     }
 
