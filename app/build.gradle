@@ -13,9 +13,24 @@ android {
         targetSdkVersion 29
     }
 
+    signingConfigs {
+        def releasePropertiesFile = rootProject.file('release.properties')
+        if (releasePropertiesFile.exists()) {
+            def releaseProperties = new Properties()
+            releasePropertiesFile.withInputStream { releaseProperties.load(it) }
+            release {
+                storeFile rootProject.file(releaseProperties.getProperty('keyStore'))
+                storePassword releaseProperties.getProperty('storePassword')
+                keyAlias releaseProperties.getProperty('keyAlias')
+                keyPassword releaseProperties.getProperty('keyPassword')
+            }
+        }
+    }
+
     buildTypes {
         release {
-            minifyEnabled true
+            minifyEnabled false
+            signingConfig signingConfigs.findByName('release')
             proguardFiles 'proguard.cfg'
         }
     }
