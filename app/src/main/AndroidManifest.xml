@@ -19,7 +19,6 @@
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
 	xmlns:tools="http://schemas.android.com/tools"
-	package="in.shick.diode"
 
 	android:installLocation="auto">
 
@@ -31,7 +30,7 @@
 
     <supports-screens />
 
-    <application android:icon="@drawable/icon" android:label="@string/app_name" android:name=".RedditIsFunApplication" android:hardwareAccelerated="true"
+    <application android:icon="@drawable/icon" android:label="@string/app_name" android:name="in.shick.diode.RedditIsFunApplication" android:hardwareAccelerated="true"
 		android:usesCleartextTraffic="true">
 
 		<uses-library android:name ="org.apache.http.legacy" android:required ="false"/>

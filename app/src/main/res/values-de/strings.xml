@@ -21,7 +21,7 @@
 <resources>
 
     <string name="app_label">reddit is fun</string>
-    <string name="app_name">Diode</string>
+    <string name="app_name">Diode Personal</string>
     <string name="user_agent">Diode für Reddit (Android) %s</string>
  
     <!-- Searches -->
