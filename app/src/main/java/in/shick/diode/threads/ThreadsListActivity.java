@@ -177,6 +177,17 @@ public final class ThreadsListActivity extends ListActivity {
 
         setContentView(R.layout.threads_list_content);
         registerForContextMenu(getListView());
+        getListView().setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+            @Override
+            public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
+                if (mThreadsAdapter == null || position < 0 || position >= mThreadsAdapter.getCount()) return false;
+                ThingInfo item = mThreadsAdapter.getItem(position);
+                mVoteTargetThing = item;
+                mJumpToThreadId = item.getId();
+                showDialog(Constants.DIALOG_THREAD_CLICK);
+                return true;
+            }
+        });
 
         if (savedInstanceState != null) {
             if (Constants.LOGGING) Log.d(TAG, "using savedInstanceState");
@@ -681,19 +692,24 @@ public final class ThreadsListActivity extends ListActivity {
     }
 
 
-    /**
-     * Called when user clicks an item in the list. Starts an activity to
-     * open the url for that item.
-     */
+    // Open comments when an article is tapped.
     @Override
     protected void onListItemClick(ListView l, View v, int position, long id) {
+        if (mThreadsAdapter == null || position < 0 || position >= mThreadsAdapter.getCount()) return;
         ThingInfo item = mThreadsAdapter.getItem(position);
-
-        // Mark the thread as selected
         mVoteTargetThing = item;
         mJumpToThreadId = item.getId();
+        openComments(item);
+    }
 
-        showDialog(Constants.DIALOG_THREAD_CLICK);
+    private void openComments(ThingInfo item) {
+        CacheInfo.invalidateCachedThread(this);
+        Intent intent = new Intent(this, CommentsListActivity.class);
+        intent.setData(Util.createThreadUri(item));
+        intent.putExtra(Constants.EXTRA_SUBREDDIT, item.getSubreddit());
+        intent.putExtra(Constants.EXTRA_TITLE, item.getTitle());
+        intent.putExtra(Constants.EXTRA_NUM_COMMENTS, Integer.valueOf(item.getNum_comments()));
+        startActivity(intent);
     }
 
     /**
@@ -1622,16 +1638,7 @@ public final class ThreadsListActivity extends ListActivity {
             return new OnClickListener() {
                 public void onClick(View v) {
                     removeDialog(Constants.DIALOG_THREAD_CLICK);
-
-                    CacheInfo.invalidateCachedThread(ThreadsListActivity.this);
-
-                    // Launch an Intent for CommentsListActivity
-                    Intent i = new Intent(ThreadsListActivity.this, CommentsListActivity.class);
-                    i.setData(Util.createThreadUri(thingInfo));
-                    i.putExtra(Constants.EXTRA_SUBREDDIT, thingInfo.getSubreddit());
-                    i.putExtra(Constants.EXTRA_TITLE, thingInfo.getTitle());
-                    i.putExtra(Constants.EXTRA_NUM_COMMENTS, Integer.valueOf(thingInfo.getNum_comments()));
-                    startActivity(i);
+                    openComments(thingInfo);
                 }
             };
         }
