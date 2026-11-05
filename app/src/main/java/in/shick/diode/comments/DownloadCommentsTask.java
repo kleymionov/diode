@@ -593,6 +593,9 @@ public class DownloadCommentsTask extends AsyncTask<Integer, Long, Boolean>
         else
             mActivity.getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_END);
 
+        // Fully remove the finished spinner's slot so the title can use that space.
+        mActivity.getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_VISIBILITY_OFF);
+
         if (success) {
             // We should clear any replies the user was composing.
             mActivity.setShouldClearReply(true);

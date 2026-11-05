@@ -770,6 +770,7 @@ public class CommentsListActivity extends ListActivity
         }
         if (mCommentsAdapter != null)
             mCommentsAdapter.mIsLoading = true;
+        getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_VISIBILITY_ON);
         getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_START);
     }
 

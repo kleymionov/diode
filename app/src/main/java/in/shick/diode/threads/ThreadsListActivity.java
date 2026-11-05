@@ -747,6 +747,7 @@ public final class ThreadsListActivity extends ListActivity {
             if (mThreadsAdapter != null)
                 mThreadsAdapter.mIsLoading = true;
         }
+        getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_VISIBILITY_ON);
         getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_START);
     }
 
@@ -876,6 +877,9 @@ public final class ThreadsListActivity extends ListActivity {
                 getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_INDETERMINATE_OFF);
             else
                 getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_END);
+
+            // PROGRESS_END only makes the spinner invisible, retaining its toolbar width.
+            getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_VISIBILITY_OFF);
 
             if (success) {
                 synchronized (THREAD_ADAPTER_LOCK) {
