@@ -100,6 +100,7 @@
 	<string name="comment_hidden">[+]</string>
 	<string name="continue_this_thread">continue this thread</string>
 	<string name="more_comments">load more comments</string>
+    <string name="loading_more_comments">Loading comments…</string>
 	<string name="context_warning">You are viewing a single comment\'s thread.</string>
 	<string name="click_to_view_all">Click here to view the rest of the comments.</string>
 	<string name="locked_thread_warning">This post is locked.</string>

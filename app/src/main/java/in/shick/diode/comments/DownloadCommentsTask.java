@@ -22,6 +22,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
 import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 
 import in.shick.diode.comments.ProcessCommentsTask.DeferredCommentProcessing;
 import in.shick.diode.common.CacheInfo;
@@ -48,7 +53,7 @@ import in.shick.diode.threads.ShowThumbnailsTask.ThumbnailLoadAction;
  * Requires the following navigation variables to be set:
  * mSettings.subreddit
  * mSettings.threadId
- * mMoreChildrenId (can be "")
+ * mMorePlaceholder (set only for inline reply loading)
  * mSortByUrl
  */
 public class DownloadCommentsTask extends AsyncTask<Integer, Long, Boolean>
@@ -78,7 +83,9 @@ public class DownloadCommentsTask extends AsyncTask<Integer, Long, Boolean>
     // offset of the first comment being loaded; 0 if it includes OP
     private int mPositionOffset = 0;
     private int mIndentation = 0;
-    private String mMoreChildrenId = "";
+    private ThingInfo mMorePlaceholder;
+    private boolean mMoreLoadComplete;
+    private final Set<String> mExistingComments = new HashSet<String>();
     private ThingInfo mOpThingInfo = null;
 
     // Progress bar
@@ -138,15 +145,24 @@ public class DownloadCommentsTask extends AsyncTask<Integer, Long, Boolean>
 
     /**
      * "load more comments" starting at this position
-     * @param moreChildrenId The reddit thing-id of the "more" children comment
+     * @param more The placeholder containing the omitted reply IDs
      * @param morePosition Position in local list to insert
-     * @param indentation The indentation level of the child.
      */
-    public DownloadCommentsTask prepareLoadMoreComments(String moreChildrenId, int morePosition, int indentation) {
-        mMoreChildrenId = moreChildrenId;
+    public DownloadCommentsTask prepareLoadMoreComments(ThingInfo more, int morePosition) {
+        mMorePlaceholder = more;
         mPositionOffset = morePosition;
-        mIndentation = indentation;
+        mIndentation = more.getIndent();
         mThingInfoIdToPositionTo = "";
+        mJumpToCommentId = "";
+        mJumpToCommentContext = 0;
+        if (mActivity != null && !mActivity.mObjectStates.mCommentsList.isEmpty()) {
+            mOpThingInfo = mActivity.mObjectStates.mCommentsList.get(0);
+            for (ThingInfo comment : mActivity.mObjectStates.mCommentsList) {
+                if (!comment.isPlaceholder() && comment.getName() != null) {
+                    mExistingComments.add(comment.getName());
+                }
+            }
+        }
         return this;
     }
 
@@ -154,17 +170,12 @@ public class DownloadCommentsTask extends AsyncTask<Integer, Long, Boolean>
     public Boolean doInBackground(Integer... maxComments) {
         HttpEntity entity = null;
         try {
+            if (mMorePlaceholder != null) return downloadMoreComments();
             StringBuilder sb = new StringBuilder(Constants.REDDIT_BASE_URL);
             if (mSubreddit != null) {
                 sb.append("/r/").append(mSubreddit.trim());
             }
-            if (mMoreChildrenId != null && mMoreChildrenId.length() > 0) {
-                sb.append("/comments/")
-                .append(mThreadId)
-                .append("/z/").append(mMoreChildrenId).append("/.json?")
-                .append(mSettings.getCommentsSortByUrl());
-                // Loading more with context makes no sense
-            } else {
+            {
                 sb.append("/comments/")
                 .append(mThreadId)
                 .append("/.json?")
@@ -241,6 +252,7 @@ public class DownloadCommentsTask extends AsyncTask<Integer, Long, Boolean>
             mUserError = e.getMessage();
             if (Constants.LOGGING) Log.w(TAG, mUserError);
         } catch (Exception e) {
+            if (mMorePlaceholder != null) mUserError = "Could not load additional comments. Please try again.";
             if (Constants.LOGGING) Log.e(TAG, "DownloadCommentsTask", e);
         } finally {
             if (entity != null) {
@@ -255,9 +267,57 @@ public class DownloadCommentsTask extends AsyncTask<Integer, Long, Boolean>
     }
 
     private void replaceCommentsAtPositionUI(final Collection<ThingInfo> comments, final int position) {
-        mActivity.mObjectStates.mCommentsList.remove(position);
-        mActivity.mObjectStates.mCommentsList.addAll(position, comments);
+        int target = mMorePlaceholder == null ? position
+                : mActivity.mObjectStates.mCommentsList.indexOf(mMorePlaceholder);
+        if (target < 0) return;
+        // A parent can be collapsed while the network request is in flight.
+        if (mMorePlaceholder != null && mMorePlaceholder.isHiddenCommentDescendant()) {
+            for (ThingInfo comment : comments) comment.setHiddenCommentDescendant(true);
+        }
+        mActivity.mObjectStates.mCommentsList.remove(target);
+        mActivity.mObjectStates.mCommentsList.addAll(target, comments);
         mActivity.mCommentsAdapter.notifyDataSetChanged();
+    }
+
+    private boolean downloadMoreComments() throws IOException {
+        List<String> ids = MoreCommentReplies.childIds(mMorePlaceholder);
+        MoreCommentReplies replies = new MoreCommentReplies();
+        Set<String> attempted = new LinkedHashSet<String>();
+        int requests = 0;
+        for (String id : ids) {
+            if (isCancelled()) return false;
+            if (replies.containsComment(id) || mExistingComments.contains("t1_" + id)) {
+                attempted.add(id);
+                continue;
+            }
+            if (requests >= MoreCommentReplies.REQUESTS_PER_LOAD) break;
+            String url = MoreCommentReplies.commentUrl(mThreadId, id, mSettings.getCommentsSortByUrl());
+            if (Constants.LOGGING) Log.d(TAG, "Loading omitted replies: " + url);
+            HttpResponse response = RedditApi.get(mActivity, url);
+            HttpEntity entity = response.getEntity();
+            InputStream input = entity.getContent();
+            try {
+                Listing[] listing = mObjectMapper.readValue(input, Listing[].class);
+                for (ThingListing thing : MoreCommentReplies.comments(listing)) replies.add(thing);
+            } finally {
+                input.close();
+                entity.consumeContent();
+            }
+            attempted.add(id);
+            requests++;
+        }
+        ArrayList<String> remaining = new ArrayList<String>(ids);
+        remaining.removeAll(attempted);
+        replies.addRemaining(mMorePlaceholder, remaining);
+        int index = mPositionOffset - 1;
+        for (ThingListing root : replies.build(attempted, mExistingComments)) {
+            index = insertNestedComment(root, 0, index + 1);
+        }
+        mProcessCommentsTask.mergeLowPriorityListToMainList();
+        mMoreLoadComplete = true;
+        if (Constants.LOGGING) Log.d(TAG, "Omitted replies loaded: requests=" + requests
+                + ", inserted rows=" + mDeferredReplacementList.size());
+        return true;
     }
 
     /**
@@ -340,6 +400,7 @@ public class DownloadCommentsTask extends AsyncTask<Integer, Long, Boolean>
 
         } catch (Exception ex) {
             if (Constants.LOGGING) Log.e(TAG, "parseCommentsJSON", ex);
+            throw new IOException("Invalid Reddit comments listing", ex);
         }
     }
 
@@ -554,6 +615,13 @@ public class DownloadCommentsTask extends AsyncTask<Integer, Long, Boolean>
             mCurrentDownloadCommentsTask = this;
         }
 
+        if (mMorePlaceholder != null) {
+            mMorePlaceholder.setLoadingMoreComments(true);
+            mActivity.mCommentsAdapter.notifyDataSetChanged();
+            mActivity.getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_VISIBILITY_ON);
+            mActivity.getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_START);
+        }
+
         if (isInsertingEntireThread()) {
             if (mActivity.mCommentsAdapter != null)
                 mActivity.mCommentsAdapter.clear();
@@ -573,13 +641,19 @@ public class DownloadCommentsTask extends AsyncTask<Integer, Long, Boolean>
 
     @Override
     public void onPostExecute(Boolean success) {
+        if (mMorePlaceholder != null) mMorePlaceholder.setLoadingMoreComments(false);
         if (isInsertingEntireThread()) {
             insertCommentsUI();
             if (isFoundJumpTargetComment())
                 mActivity.getListView().setSelection(mJumpToCommentFoundIndex);
         }
-        else if (!mDeferredReplacementList.isEmpty()) {
+        else if (success && mMoreLoadComplete) {
             replaceCommentsAtPositionUI(mDeferredReplacementList, mPositionOffset);
+            if (mDeferredReplacementList.isEmpty()) {
+                Toast.makeText(mActivity, "No additional comments are available for this branch.", Toast.LENGTH_LONG).show();
+            }
+        } else {
+            mActivity.mCommentsAdapter.notifyDataSetChanged();
         }
 
         // have to wait till onPostExecute to do this, to ensure they've been inserted by UI thread
@@ -606,7 +680,7 @@ public class DownloadCommentsTask extends AsyncTask<Integer, Long, Boolean>
         } else {
             if (!isCancelled()) {
                 Common.showErrorToast(mUserError, Toast.LENGTH_LONG, mActivity);
-                mActivity.resetUI(null);
+                if (isInsertingEntireThread()) mActivity.resetUI(null);
             }
         }
 

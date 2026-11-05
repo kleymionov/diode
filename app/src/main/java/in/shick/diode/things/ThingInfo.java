@@ -94,6 +94,8 @@ public class ThingInfo implements Serializable, Parcelable {
     private String parent_id;				//   c m
     private String permalink;				// t
     private Listing replies;				//   c
+    private ArrayList<String> children;   // omitted comment IDs on "more" entries
+    transient private boolean mLoadingMoreComments;
     private boolean saved;					// t
     private int score;						// t
     private String selftext;				// t
@@ -286,6 +288,12 @@ public class ThingInfo implements Serializable, Parcelable {
     public ArrayList<MarkdownURL> getUrls() {
         return mUrls;
     }
+
+    public ArrayList<String> getChildren() { return children; }
+    public void setChildren(ArrayList<String> children) { this.children = children; }
+    @JsonIgnore
+    public boolean isLoadingMoreComments() { return mLoadingMoreComments; }
+    public void setLoadingMoreComments(boolean loading) { mLoadingMoreComments = loading; }
 
     @JsonAnySetter
     public void handleUnknown(String key, Object value) {
@@ -646,6 +654,7 @@ public class ThingInfo implements Serializable, Parcelable {
         booleans[13] = mIsLockedPlaceholder;
         booleans[14] = mIsArchivedPlaceholder;
         out.writeBooleanArray(booleans);
+        out.writeStringList(children);
     }
 
     private ThingInfo(Parcel in) {
@@ -698,6 +707,7 @@ public class ThingInfo implements Serializable, Parcelable {
         locked                         = booleans[12];
         mIsLockedPlaceholder           = booleans[13];
         mIsArchivedPlaceholder         = booleans[14];
+        children = in.createStringArrayList();
     }
 
     public static final Parcelable.Creator<ThingInfo> CREATOR

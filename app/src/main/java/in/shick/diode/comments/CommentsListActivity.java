@@ -566,6 +566,9 @@ public class CommentsListActivity extends ListActivity
                         loadAndStoreViewHolder(view);
                     }
 
+                    ((TextView) view.findViewById(R.id.more_comments_text)).setText(
+                            item.isLoadingMoreComments() ? R.string.loading_more_comments : R.string.more_comments);
+
                     setCommentIndent(view, item.getIndent(), mSettings);
 
                 } else if (item.isContextPlaceholder()) {
@@ -701,7 +704,7 @@ public class CommentsListActivity extends ListActivity
 
         if (isLoadMoreCommentsPosition(position)) {
             // Use this constructor to tell it to load more comments inline
-            getNewDownloadCommentsTask().prepareLoadMoreComments(item.getId(), position, item.getIndent())
+            getNewDownloadCommentsTask().prepareLoadMoreComments(item, position)
             .execute(Constants.DEFAULT_COMMENT_DOWNLOAD_LIMIT);
         } else {
             // Clicking the comment-context warning takes you to the whole comments thread.
