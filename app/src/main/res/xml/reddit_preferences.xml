@@ -129,7 +129,8 @@
 		<CheckBoxPreference
 			android:key="load_thumbnails"
 			android:defaultValue="true"
-			android:title="@string/pref_load_thumbnails" />
+			android:title="@string/pref_load_thumbnails"
+            android:summary="Turn off to hide the right-side thumbnails and link arrows, giving story titles more room." />
 		<CheckBoxPreference
 			android:key="load_thumbnails_only_wifi"
 			android:title="@string/pref_load_thumbnails_only_wifi"
